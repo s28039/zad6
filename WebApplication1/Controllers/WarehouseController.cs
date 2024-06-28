@@ -1,3 +1,4 @@
+
 using Microsoft.AspNetCore.Mvc;
 using WebApplication1.Repositories;
 
@@ -22,18 +23,25 @@ public class WarehouseController : ControllerBase
             return NotFound();
         }
         
-        
-        
-        if (!await _warehouseRepository.InOrder(productId))
+        try
         {
-            _warehouseRepository.UpdateData(productId);
-
+            await _warehouseRepository.BeginTransactionAsync();
+            
+            if (!await _warehouseRepository.InOrder(productId))
+            {
+                await _warehouseRepository.UpdateData(productId);
+            }
+            
+            await _warehouseRepository.AddProduct(productId, idWarehouse, amount, createdAt);
+            
+            await _warehouseRepository.CommitTransactionAsync();
+            
+            return Ok();
         }
-        await _warehouseRepository.AddProduct(productId, idWarehouse, amount, createdAt);
-        
-        
-        return Ok();
-               
+        catch (Exception)
+        {
+            await _warehouseRepository.RollbackTransactionAsync();
+            return StatusCode(500, "Internal server error");
+        }
     }
-    
 }
